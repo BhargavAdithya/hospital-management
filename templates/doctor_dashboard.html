@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-header">
+    <h2>Doctor Dashboard — {{ current_user.username }}</h2>
+    <span class="subtitle">Today's Appointments</span>
+</div>
+
+{% if appointments %}
+<table class="data-table">
+    <thead>
+        <tr>
+            <th>#</th>
+            <th>Patient Name</th>
+            <th>Age</th>
+            <th>Gender</th>
+            <th>Time</th>
+            <th>Status</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for appt in appointments %}
+        <tr>
+            <td>{{ loop.index }}</td>
+            <td>{{ appt.patient.name }}</td>
+            <td>{{ appt.patient.age }}</td>
+            <td>{{ appt.patient.gender }}</td>
+            <td>{{ appt.time.strftime('%I:%M %p') }}</td>
+            <td>
+                <span class="badge badge-{{ appt.status }}">
+                    {{ appt.status | capitalize }}
+                </span>
+            </td>
+            <td class="action-btns">
+                {% if appt.status == 'pending' %}
+                    <a href="{{ url_for('doctor.accept_appointment', appointment_id=appt.id) }}"
+                       class="btn btn-success btn-small">Accept</a>
+                    <a href="{{ url_for('doctor.reject_appointment', appointment_id=appt.id) }}"
+                       class="btn btn-danger btn-small">Reject</a>
+                {% endif %}
+
+                {% if appt.status == 'accepted' %}
+                    <a href="{{ url_for('doctor.prescribe', appointment_id=appt.id) }}"
+                       class="btn btn-primary btn-small">
+                        {% if appt.prescription %}Edit Rx{% else %}Write Rx{% endif %}
+                    </a>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+    <p class="empty-msg">No appointments scheduled for today.</p>
+{% endif %}
+
+{% endblock %}

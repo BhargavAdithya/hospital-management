@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-header">
+    <h2>Receptionist Dashboard</h2>
+    <a href="{{ url_for('receptionist.add_patient') }}" class="btn btn-primary">
+        + Admit New Patient
+    </a>
+</div>
+
+<h3>All Appointments</h3>
+
+{% if appointments %}
+<table class="data-table">
+    <thead>
+        <tr>
+            <th>#</th>
+            <th>Patient Name</th>
+            <th>Age</th>
+            <th>Doctor</th>
+            <th>Date</th>
+            <th>Time</th>
+            <th>Status</th>
+            <th>Prescription</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for appt in appointments %}
+        <tr>
+            <td>{{ loop.index }}</td>
+            <td>{{ appt.patient.name }}</td>
+            <td>{{ appt.patient.age }}</td>
+            <td>{{ appt.doctor.username }}</td>
+            <td>{{ appt.date }}</td>
+            <td>{{ appt.time.strftime('%I:%M %p') }}</td>
+            <td>
+                <span class="badge badge-{{ appt.status }}">
+                    {{ appt.status | capitalize }}
+                </span>
+                {% if appt.status == 'rejected' %}
+                    ⚠️ <em>Please rebook</em>
+                {% endif %}
+            </td>
+            <td>
+                {% if appt.prescription %}
+                    {{ appt.prescription.notes[:40] }}...
+                {% else %}
+                    <em>Not yet written</em>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+    <p class="empty-msg">No appointments found. Admit a patient to get started.</p>
+{% endif %}
+
+{% endblock %}

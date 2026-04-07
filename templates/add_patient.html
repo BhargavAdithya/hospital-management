@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-header">
+    <h2>Admit New Patient</h2>
+    <a href="{{ url_for('receptionist.dashboard') }}" class="btn btn-small">
+        ← Back to Dashboard
+    </a>
+</div>
+
+<div class="form-card">
+    <form method="POST">
+        {{ patient_form.hidden_tag() }}
+
+        <h3>Patient Details</h3>
+
+        <div class="form-group">
+            {{ patient_form.name.label }}
+            {{ patient_form.name(class="form-control") }}
+            {% for error in patient_form.name.errors %}
+                <span class="error">{{ error }}</span>
+            {% endfor %}
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                {{ patient_form.age.label }}
+                {{ patient_form.age(class="form-control") }}
+                {% for error in patient_form.age.errors %}
+                    <span class="error">{{ error }}</span>
+                {% endfor %}
+            </div>
+
+            <div class="form-group">
+                {{ patient_form.gender.label }}
+                {{ patient_form.gender(class="form-control") }}
+            </div>
+        </div>
+
+        <div class="form-group">
+            {{ patient_form.contact.label }}
+            {{ patient_form.contact(class="form-control") }}
+            {% for error in patient_form.contact.errors %}
+                <span class="error">{{ error }}</span>
+            {% endfor %}
+        </div>
+
+        <h3>Appointment Details</h3>
+
+        <div class="form-group">
+            {{ appointment_form.doctor_id.label }}
+            {{ appointment_form.doctor_id(class="form-control") }}
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                {{ appointment_form.date.label }}
+                {{ appointment_form.date(class="form-control") }}
+                {% for error in appointment_form.date.errors %}
+                    <span class="error">{{ error }}</span>
+                {% endfor %}
+            </div>
+
+            <div class="form-group">
+                {{ appointment_form.time.label }}
+                {{ appointment_form.time(class="form-control") }}
+                {% for error in appointment_form.time.errors %}
+                    <span class="error">{{ error }}</span>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="form-group">
+            {{ patient_form.submit(class="btn btn-primary btn-full") }}
+        </div>
+    </form>
+</div>
+
+{% endblock %}

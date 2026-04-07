@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Hospital Management System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"/>
+</head>
+<body>
+
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <span class="nav-brand">🏥 HMS</span>
+        {% if current_user.is_authenticated %}
+            <span class="nav-user">
+                Logged in as <strong>{{ current_user.username }}</strong>
+                ({{ current_user.role }})
+            </span>
+            <a href="{{ url_for('auth.logout') }}" class="btn btn-small">Logout</a>
+        {% endif %}
+    </nav>
+
+    <div class="container">
+
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <!-- Page Content -->
+        {% block content %}{% endblock %}
+
+    </div>
+
+</body>
+</html>
