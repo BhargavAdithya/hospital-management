@@ -38,7 +38,14 @@
                     {{ appt.status | capitalize }}
                 </span>
                 {% if appt.status == 'rejected' %}
-                    ⚠️ <em>Please rebook</em>
+                    <div class="alert alert-danger" style="margin-top:6px; padding:8px;">
+                        ⚠️ Dr. <strong>{{ appt.doctor.username }}</strong> has
+                        rejected this appointment.<br/>
+                        <a href="{{ url_for('receptionist.reschedule', appointment_id=appt.id) }}"
+                           class="btn btn-small btn-primary" style="margin-top:6px;">
+                            🔄 Reschedule
+                        </a>
+                    </div>
                 {% endif %}
             </td>
             <td>

@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-header">
+    <h2>Reschedule Appointment</h2>
+    <a href="{{ url_for('receptionist.dashboard') }}" class="btn btn-small">
+        ← Back to Dashboard
+    </a>
+</div>
+
+<div class="form-card">
+
+    <!-- Current appointment info -->
+    <div class="patient-info" style="margin-bottom:20px;">
+        <strong>Patient:</strong> {{ appointment.patient.name }} |
+        <strong>Previous Doctor:</strong> {{ appointment.doctor.username }} |
+        <strong>Rejected Slot:</strong>
+        {{ appointment.date }} at {{ appointment.time.strftime('%I:%M %p') }}
+    </div>
+
+    {% if blocked_slots %}
+    <div class="alert alert-warning">
+        ⚠️ The following times are <strong>blocked</strong> for the selected doctor
+        on the selected date (previously rejected):
+        {% for t in blocked_slots %}
+            <span class="badge badge-rejected">{{ t }}</span>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <form method="POST" id="reschedule-form">
+        {{ form.hidden_tag() }}
+
+        <div class="form-group">
+            {{ form.doctor_id.label }}
+            {{ form.doctor_id(class="form-control", id="doctor-select") }}
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                {{ form.date.label }}
+                {{ form.date(class="form-control", id="date-input") }}
+                {% for error in form.date.errors %}
+                    <span class="error">{{ error }}</span>
+                {% endfor %}
+            </div>
+
+            <div class="form-group">
+                {{ form.time.label }}
+                {{ form.time(class="form-control") }}
+                {% if not form.time.choices or form.time.choices == [('', 'No slots available')] %}
+                    <span class="error">No available slots — try a different date.</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="form-group">
+            {{ form.submit(class="btn btn-primary btn-full") }}
+        </div>
+    </form>
+</div>
+
+<!-- Reload page with selected doctor + date to filter time slots -->
+<script>
+    const doctorSelect = document.getElementById('doctor-select');
+    const dateInput    = document.getElementById('date-input');
+
+    function reloadWithFilters() {
+        const doctorId = doctorSelect.value;
+        const date     = dateInput.value;
+        if (doctorId && date) {
+            const base = window.location.pathname;
+            window.location.href = `${base}?doctor_id=${doctorId}&date=${date}`;
+        }
+    }
+
+    doctorSelect.addEventListener('change', reloadWithFilters);
+    dateInput.addEventListener('change', reloadWithFilters);
+</script>
+
+{% endblock %}

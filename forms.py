@@ -42,3 +42,9 @@ class PrescriptionForm(FlaskForm):
     notes  = TextAreaField('Prescription / Notes',
                            validators=[DataRequired(), Length(min=5)])
     submit = SubmitField('Save Prescription')
+
+class RescheduleForm(FlaskForm):
+    doctor_id = SelectField('Assign Doctor', coerce=int, validators=[DataRequired()])
+    date      = DateField('New Date', validators=[DataRequired()])
+    time      = SelectField('Available Time Slot', validators=[DataRequired()])
+    submit    = SubmitField('Reschedule Appointment')

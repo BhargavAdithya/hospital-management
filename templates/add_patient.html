@@ -12,6 +12,30 @@
     <form method="POST">
         {{ patient_form.hidden_tag() }}
 
+        {% if existing_patient %}
+        <div class="alert alert-info">
+            <strong>Returning Patient Detected:</strong>
+            {{ existing_patient.name }} (Age: {{ existing_patient.age }},
+            Contact: {{ existing_patient.contact }}) is already in the system.
+            A new appointment will be linked to their existing record.
+        </div>
+
+        {% if previous_prescriptions %}
+        <div class="patient-info" style="margin-bottom:16px;">
+            <strong>Previous Prescription History:</strong>
+            {% for rx in previous_prescriptions %}
+            <div style="margin-top:8px; border-top:1px solid #ddd; padding-top:8px;">
+                <small>
+                    📅 <strong>{{ rx.date }}</strong> —
+                    Dr. {{ rx.doctor }}
+                </small>
+                <p style="margin-top:4px;">{{ rx.notes }}</p>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endif %}
+
         <h3>Patient Details</h3>
 
         <div class="form-group">
