@@ -1,0 +1,39 @@
+# ── Python ────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# ── Virtual Environment ────────────────────────────
+venv/
+env/
+.venv/
+.env/
+
+# ── Flask Instance Folder (DB lives here) ─────────
+instance/
+
+# ── Database files (root level, safe to ignore) ───
+*.db
+*.sqlite
+*.sqlite3
+
+# ── Environment Variables ──────────────────────────
+.env
+.flaskenv
+
+# ── IDE / Editor ───────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ── OS Files ──────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ── Distribution / Build ──────────────────────────
+dist/
+build/
+*.egg-info/
