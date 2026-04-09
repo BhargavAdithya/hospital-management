@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div style="max-width:680px; margin:0 auto;">
+    <div class="page-header">
+        <h2>📋 Book an Appointment</h2>
+        <a href="{{ url_for('auth.role_select') }}" class="btn btn-small">← Back</a>
+    </div>
+
+    <div class="form-card">
+        <form method="POST" id="booking-form">
+            {{ form.hidden_tag() }}
+
+            <h3>Personal Details</h3>
+
+            <div class="form-group">
+                {{ form.name.label }}
+                {{ form.name(class="form-control", placeholder="Enter your full name") }}
+                {% for e in form.name.errors %}<span class="error">{{ e }}</span>{% endfor %}
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    {{ form.age.label }}
+                    {{ form.age(class="form-control", placeholder="Age") }}
+                    {% for e in form.age.errors %}<span class="error">{{ e }}</span>{% endfor %}
+                </div>
+                <div class="form-group">
+                    {{ form.gender.label }}
+                    {{ form.gender(class="form-control") }}
+                </div>
+            </div>
+
+            <!-- Phone with country code -->
+            <div class="form-group">
+                <label>Phone Number</label>
+                <div style="display:flex; gap:10px;">
+                    {{ form.country_code(class="form-control", style="max-width:200px;") }}
+                    {{ form.contact(class="form-control", placeholder="Phone number") }}
+                </div>
+                {% for e in form.contact.errors %}<span class="error">{{ e }}</span>{% endfor %}
+            </div>
+
+            <div class="form-group">
+                {{ form.email.label }}
+                {{ form.email(class="form-control", placeholder="your@email.com") }}
+                {% for e in form.email.errors %}<span class="error">{{ e }}</span>{% endfor %}
+            </div>
+
+            <div class="form-group">
+                {{ form.address.label }}
+                {{ form.address(class="form-control", rows=3,
+                   placeholder="House No, Street, City, State, PIN") }}
+                {% for e in form.address.errors %}<span class="error">{{ e }}</span>{% endfor %}
+            </div>
+
+            <div class="form-group">
+                {{ form.problem.label }}
+                {{ form.problem(class="form-control", rows=3,
+                   placeholder="Briefly describe your symptoms or reason for visit...") }}
+                {% for e in form.problem.errors %}<span class="error">{{ e }}</span>{% endfor %}
+            </div>
+
+            <h3>Appointment Details</h3>
+
+            <div class="form-group">
+                {{ form.doctor_id.label }}
+                {{ form.doctor_id(class="form-control", id="doctor-select") }}
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    {{ form.date.label }}
+                    {{ form.date(class="form-control", id="date-input",
+                       min=min_date, max=max_date) }}
+                    {% for e in form.date.errors %}<span class="error">{{ e }}</span>{% endfor %}
+                    <span style="font-size:12px; color:#888;">
+                        Bookable: {{ min_date }} to {{ max_date }} (weekdays only)
+                    </span>
+                </div>
+                <div class="form-group">
+                    <label>Time Slot</label>
+                    <select name="time" id="time-select" class="form-control" disabled>
+                        <option value="">— Select doctor &amp; date first —</option>
+                    </select>
+                    {% for e in form.time.errors %}<span class="error">{{ e }}</span>{% endfor %}
+                </div>
+            </div>
+
+            <!-- Banners -->
+            <div id="banner-weekend"  class="alert alert-danger"  style="display:none;">
+                ⛔ Weekends are holidays. Please select a weekday.
+            </div>
+            <div id="banner-range"    class="alert alert-danger"  style="display:none;">
+                ⛔ Appointments can only be booked within the next 7 days.
+            </div>
+            <div id="banner-no-slots" class="alert alert-warning" style="display:none;">
+                ⚠️ No available slots for this doctor on the selected date.
+            </div>
+            <div id="banner-error"    class="alert alert-danger"  style="display:none;">
+                ⚠️ Could not load time slots. Please try again.
+            </div>
+            <div id="banner-no-time"  class="alert alert-warning" style="display:none;">
+                ⚠️ Please select a time slot before submitting.
+            </div>
+
+            <div class="form-group" style="margin-top:12px;">
+                {{ form.submit(class="btn btn-primary btn-full", id="submit-btn") }}
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+(function () {
+    const doctorSelect = document.getElementById('doctor-select');
+    const dateInput    = document.getElementById('date-input');
+    const timeSelect   = document.getElementById('time-select');
+    const submitBtn    = document.getElementById('submit-btn');
+
+    const bWeekend  = document.getElementById('banner-weekend');
+    const bRange    = document.getElementById('banner-range');
+    const bNoSlots  = document.getElementById('banner-no-slots');
+    const bError    = document.getElementById('banner-error');
+    const bNoTime   = document.getElementById('banner-no-time');
+
+    const minDate = '{{ min_date }}';
+    const maxDate = '{{ max_date }}';
+
+    function hideAll() {
+        [bWeekend, bRange, bNoSlots, bError, bNoTime]
+            .forEach(b => b.style.display = 'none');
+    }
+
+    function setSlot(placeholder, disabled) {
+        timeSelect.innerHTML = `<option value="">${placeholder}</option>`;
+        timeSelect.disabled  = disabled;
+        submitBtn.disabled   = disabled;
+    }
+
+    function isWeekend(d) {
+        const [y,m,day] = d.split('-').map(Number);
+        const wd = new Date(y, m-1, day).getDay();
+        return wd === 0 || wd === 6;
+    }
+
+    function outOfRange(d) { return d < minDate || d > maxDate; }
+
+    function loadSlots() {
+        const doc  = doctorSelect.value;
+        const date = dateInput.value;
+        hideAll();
+
+        if (!doc || !date || date.length < 10) {
+            setSlot('— Select doctor & date first —', true); return;
+        }
+        if (isWeekend(date)) {
+            bWeekend.style.display = 'block';
+            setSlot('No slots — weekend', true); return;
+        }
+        if (outOfRange(date)) {
+            bRange.style.display = 'block';
+            setSlot('Date out of range', true); return;
+        }
+
+        setSlot('Loading slots…', true);
+
+        fetch(`/patient/slots?doctor_id=${doc}&date=${date}`)
+            .then(r => r.json())
+            .then(data => {
+                if (data.weekend)     { bWeekend.style.display='block'; setSlot('No slots — weekend', true); return; }
+                if (data.out_of_range){ bRange.style.display='block';   setSlot('Date out of range', true); return; }
+                if (!data.slots || data.slots.length === 0) {
+                    bNoSlots.style.display = 'block';
+                    setSlot('No slots available', true); return;
+                }
+                timeSelect.innerHTML = '<option value="">— Select a time —</option>';
+                data.slots.forEach(s => {
+                    const o = document.createElement('option');
+                    o.value = s.value; o.textContent = s.label;
+                    timeSelect.appendChild(o);
+                });
+                timeSelect.disabled = false;
+                submitBtn.disabled  = false;
+            })
+            .catch(() => { bError.style.display='block'; setSlot('Error — try again', true); });
+    }
+
+    doctorSelect.addEventListener('change', loadSlots);
+    dateInput.addEventListener('change', loadSlots);
+
+    document.getElementById('booking-form').addEventListener('submit', function(e) {
+        if (!timeSelect.value) {
+            e.preventDefault(); hideAll();
+            bNoTime.style.display = 'block';
+            timeSelect.focus();
+        }
+    });
+})();
+</script>
+
+{% endblock %}

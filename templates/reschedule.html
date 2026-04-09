@@ -1,3 +1,4 @@
+/* reschedule.html */
 {% extends "base.html" %}
 {% block content %}
 
@@ -10,23 +11,36 @@
 
 <div class="form-card">
 
-    <!-- Current appointment info -->
     <div class="patient-info" style="margin-bottom:20px;">
-        <strong>Patient:</strong> {{ appointment.patient.name }} |
-        <strong>Previous Doctor:</strong> {{ appointment.doctor.username }} |
-        <strong>Rejected Slot:</strong>
-        {{ appointment.date }} at {{ appointment.time.strftime('%I:%M %p') }}
+        <p>
+            <strong>Patient:</strong> {{ appointment.patient.name }}
+            &nbsp;|&nbsp;
+            <strong>Doctor who rejected:</strong> {{ appointment.doctor.username }}
+            &nbsp;|&nbsp;
+            <strong>Rejected slot:</strong>
+            {{ appointment.date.strftime('%d %b %Y') }}
+            at {{ appointment.time.strftime('%I:%M %p') }}
+        </p>
+        <p style="font-size:13px; color:#d93025; margin-top:6px;">
+            ⚠️ The slot above is hidden for <strong>{{ appointment.doctor.username }}</strong>
+            on <strong>{{ appointment.date.strftime('%d %b %Y') }}</strong>.
+            Choose a different time, date, or doctor.
+        </p>
     </div>
 
-    {% if blocked_slots %}
-    <div class="alert alert-warning">
-        ⚠️ The following times are <strong>blocked</strong> for the selected doctor
-        on the selected date (previously rejected):
-        {% for t in blocked_slots %}
-            <span class="badge badge-rejected">{{ t }}</span>
-        {% endfor %}
+    <!-- Dynamic feedback banners (hidden until JS needs them) -->
+    <div id="banner-weekend" class="alert alert-danger" style="display:none;">
+        ⛔ Weekends are holidays. Please select a weekday (Mon – Fri).
     </div>
-    {% endif %}
+    <div id="banner-range" class="alert alert-danger" style="display:none;">
+        ⛔ Appointments can only be booked within the next 7 days.
+    </div>
+    <div id="banner-no-slots" class="alert alert-warning" style="display:none;">
+        ⚠️ No available slots for the selected doctor on this date.
+    </div>
+    <div id="banner-error" class="alert alert-danger" style="display:none;">
+        ⚠️ Could not load time slots. Please try again.
+    </div>
 
     <form method="POST" id="reschedule-form">
         {{ form.hidden_tag() }}
@@ -39,43 +53,172 @@
         <div class="form-row">
             <div class="form-group">
                 {{ form.date.label }}
-                {{ form.date(class="form-control", id="date-input") }}
+                {{ form.date(
+                    class="form-control",
+                    id="date-input",
+                    min=min_date,
+                    max=max_date
+                ) }}
                 {% for error in form.date.errors %}
                     <span class="error">{{ error }}</span>
                 {% endfor %}
+                <span style="font-size:12px;color:#888;">
+                    Bookable: {{ min_date }} to {{ max_date }} (weekdays only)
+                </span>
             </div>
 
             <div class="form-group">
-                {{ form.time.label }}
-                {{ form.time(class="form-control") }}
-                {% if not form.time.choices or form.time.choices == [('', 'No slots available')] %}
-                    <span class="error">No available slots — try a different date.</span>
-                {% endif %}
+                <label for="time-select">Available Time Slot</label>
+                <select name="time" id="time-select" class="form-control" disabled>
+                    <option value="">— Select doctor &amp; date first —</option>
+                </select>
+                <span id="time-error" class="error" style="display:none;">
+                    Please select a time slot.
+                </span>
+                {% for error in form.time.errors %}
+                    <span class="error">{{ error }}</span>
+                {% endfor %}
             </div>
         </div>
 
-        <div class="form-group">
-            {{ form.submit(class="btn btn-primary btn-full") }}
+        <div class="form-group" style="margin-top:8px;">
+            {{ form.submit(
+                class="btn btn-primary btn-full",
+                id="submit-btn"
+            ) }}
         </div>
     </form>
 </div>
 
-<!-- Reload page with selected doctor + date to filter time slots -->
 <script>
-    const doctorSelect = document.getElementById('doctor-select');
-    const dateInput    = document.getElementById('date-input');
+(function () {
+    const doctorSelect   = document.getElementById('doctor-select');
+    const dateInput      = document.getElementById('date-input');
+    const timeSelect     = document.getElementById('time-select');
+    const submitBtn      = document.getElementById('submit-btn');
+    const timeError      = document.getElementById('time-error');
 
-    function reloadWithFilters() {
-        const doctorId = doctorSelect.value;
-        const date     = dateInput.value;
-        if (doctorId && date) {
-            const base = window.location.pathname;
-            window.location.href = `${base}?doctor_id=${doctorId}&date=${date}`;
-        }
+    const bannerWeekend  = document.getElementById('banner-weekend');
+    const bannerRange    = document.getElementById('banner-range');
+    const bannerNoSlots  = document.getElementById('banner-no-slots');
+    const bannerError    = document.getElementById('banner-error');
+
+    // The ID of the appointment being rescheduled — sent to AJAX so the
+    // server knows which rejected slot to always hide for same doctor+date.
+    const rescheduleApptId = {{ reschedule_appt_id }};
+    const minDate = '{{ min_date }}';
+    const maxDate = '{{ max_date }}';
+
+    function hideAllBanners() {
+        [bannerWeekend, bannerRange, bannerNoSlots, bannerError]
+            .forEach(b => b.style.display = 'none');
     }
 
-    doctorSelect.addEventListener('change', reloadWithFilters);
-    dateInput.addEventListener('change', reloadWithFilters);
+    function showBanner(el) {
+        hideAllBanners();
+        el.style.display = 'block';
+    }
+
+    function isWeekend(dateStr) {
+        // Parse as local date to avoid UTC-shift issues
+        const [y, m, d] = dateStr.split('-').map(Number);
+        const day = new Date(y, m - 1, d).getDay(); // 0=Sun, 6=Sat
+        return day === 0 || day === 6;
+    }
+
+    function isOutOfRange(dateStr) {
+        return dateStr < minDate || dateStr > maxDate;
+    }
+
+    function setTimeSelectState(placeholder, disabled) {
+        timeSelect.innerHTML = `<option value="">${placeholder}</option>`;
+        timeSelect.disabled  = disabled;
+        submitBtn.disabled   = disabled;
+    }
+
+    function loadSlots() {
+        const doctorId = doctorSelect.value;
+        const dateVal  = dateInput.value;
+
+        hideAllBanners();
+        timeError.style.display = 'none';
+
+        if (!doctorId || !dateVal || dateVal.length < 10) {
+            setTimeSelectState('— Select doctor & date first —', true);
+            return;
+        }
+
+        if (isWeekend(dateVal)) {
+            showBanner(bannerWeekend);
+            setTimeSelectState('No slots — weekend', true);
+            return;
+        }
+
+        if (isOutOfRange(dateVal)) {
+            showBanner(bannerRange);
+            setTimeSelectState('Date out of range', true);
+            return;
+        }
+
+        // Show loading state
+        setTimeSelectState('Loading slots…', true);
+
+        const url = `/receptionist/slots?doctor_id=${doctorId}&date=${dateVal}&reschedule_appt=${rescheduleApptId}`;
+
+        fetch(url)
+            .then(r => r.json())
+            .then(data => {
+                if (data.weekend) {
+                    showBanner(bannerWeekend);
+                    setTimeSelectState('No slots — weekend', true);
+                    return;
+                }
+                if (data.out_of_range) {
+                    showBanner(bannerRange);
+                    setTimeSelectState('Date out of range', true);
+                    return;
+                }
+                if (!data.slots || data.slots.length === 0) {
+                    showBanner(bannerNoSlots);
+                    setTimeSelectState('No slots available', true);
+                    return;
+                }
+
+                // Populate dropdown
+                timeSelect.innerHTML = '';
+                const placeholder = document.createElement('option');
+                placeholder.value = '';
+                placeholder.textContent = '— Select a time slot —';
+                timeSelect.appendChild(placeholder);
+
+                data.slots.forEach(slot => {
+                    const opt = document.createElement('option');
+                    opt.value = slot.value;
+                    opt.textContent = slot.label;
+                    timeSelect.appendChild(opt);
+                });
+
+                timeSelect.disabled = false;
+                submitBtn.disabled  = false;
+            })
+            .catch(() => {
+                showBanner(bannerError);
+                setTimeSelectState('Error — try again', true);
+            });
+    }
+
+    doctorSelect.addEventListener('change', loadSlots);
+    dateInput.addEventListener('change', loadSlots);
+
+    // Guard: block submit if no slot selected
+    document.getElementById('reschedule-form').addEventListener('submit', function (e) {
+        if (!timeSelect.value) {
+            e.preventDefault();
+            timeError.style.display = 'block';
+            timeSelect.focus();
+        }
+    });
+})();
 </script>
 
 {% endblock %}

@@ -1,58 +1,139 @@
+/* doctor_dashboard.html */
 {% extends "base.html" %}
 {% block content %}
 
 <div class="page-header">
     <h2>Doctor Dashboard — {{ current_user.username }}</h2>
-    <span class="subtitle">Today's Appointments</span>
+    <span class="subtitle">
+        Week: {{ monday.strftime('%d %b') }} – {{ friday.strftime('%d %b %Y') }}
+    </span>
 </div>
 
-{% if appointments %}
-<table class="data-table">
-    <thead>
-        <tr>
-            <th>#</th>
-            <th>Patient Name</th>
-            <th>Age</th>
-            <th>Gender</th>
-            <th>Time</th>
-            <th>Status</th>
-            <th>Actions</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for appt in appointments %}
-        <tr>
-            <td>{{ loop.index }}</td>
-            <td>{{ appt.patient.name }}</td>
-            <td>{{ appt.patient.age }}</td>
-            <td>{{ appt.patient.gender }}</td>
-            <td>{{ appt.time.strftime('%I:%M %p') }}</td>
-            <td>
-                <span class="badge badge-{{ appt.status }}">
-                    {{ appt.status | capitalize }}
-                </span>
-            </td>
-            <td class="action-btns">
-                {% if appt.status == 'pending' %}
-                    <a href="{{ url_for('doctor.accept_appointment', appointment_id=appt.id) }}"
-                       class="btn btn-success btn-small">Accept</a>
-                    <a href="{{ url_for('doctor.reject_appointment', appointment_id=appt.id) }}"
-                       class="btn btn-danger btn-small">Reject</a>
-                {% endif %}
+{% set day_names = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'] %}
+{% set found_any = namespace(value=false) %}
 
-                {% if appt.status == 'accepted' %}
-                    <a href="{{ url_for('doctor.prescribe', appointment_id=appt.id) }}"
-                       class="btn btn-primary btn-small">
-                        {% if appt.prescription %}Edit Rx{% else %}Write Rx{% endif %}
-                    </a>
+{% for day_date in week_days %}
+    {% set day_appts = [] %}
+    {% for appt in appointments %}
+        {% if appt.date == day_date %}
+            {% set _ = day_appts.append(appt) %}
+        {% endif %}
+    {% endfor %}
+
+    {% if day_appts %}
+        {% set found_any.value = true %}
+        <div style="margin-bottom: 28px;">
+            <h3 style="color: {{ '#1a73e8' if day_date == today else '#444' }};
+                border-bottom: 2px solid {{ '#1a73e8' if day_date == today else '#eee' }};
+                padding-bottom: 6px; margin-bottom: 12px; font-size: 1rem;">
+                {{ day_names[loop.index0] }}
+                <span style="font-weight:400; color:#666; font-size:0.85rem;">
+                    &mdash; {{ day_date.strftime('%d %b %Y') }}
+                </span>
+                {% if day_date == today %}
+                    <span class="badge badge-pending" style="font-size:11px; margin-left:6px;">Today</span>
                 {% endif %}
-            </td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
-{% else %}
-    <p class="empty-msg">No appointments scheduled for today.</p>
+            </h3>
+
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Patient Name</th>
+                        <th>Age</th>
+                        <th>Gender</th>
+                        <th>Time</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for appt in day_appts %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td>{{ appt.patient.name }}</td>
+                        <td>{{ appt.patient.age }}</td>
+                        <td>{{ appt.patient.gender }}</td>
+                        <td>{{ appt.time.strftime('%I:%M %p') }}</td>
+                        <td>
+                            <span class="badge badge-{{ appt.status }}">
+                                {{ appt.status | capitalize }}
+                            </span>
+                        </td>
+                        <td class="action-btns">
+                            {% if appt.status == 'pending' %}
+                                <a href="{{ url_for('doctor.accept_appointment', appointment_id=appt.id) }}"
+                                   class="btn btn-success btn-small">✓ Accept</a>
+                                <a href="{{ url_for('doctor.reject_appointment', appointment_id=appt.id) }}"
+                                   class="btn btn-danger btn-small">✗ Reject</a>
+                            {% elif appt.status == 'accepted' %}
+                                <a href="{{ url_for('doctor.prescribe', appointment_id=appt.id) }}"
+                                   class="btn btn-primary btn-small">
+                                    {% if appt.prescription %}✏️ Edit Rx{% else %}📝 Write Rx{% endif %}
+                                </a>
+                                <button
+                                    class="btn btn-danger btn-small"
+                                    onclick="confirmNoShow('{{ url_for('doctor.noshow_appointment', appointment_id=appt.id) }}', '{{ appt.patient.name }}')">
+                                    🚫 No Show
+                                </button>
+                            {% elif appt.status == 'rejected' %}
+                                <em style="color:#999; font-size:13px;">Awaiting reschedule</em>
+                            {% elif appt.status == 'missed' %}
+                                <em style="color:#999; font-size:13px;">Marked as No-Show</em>
+                            {% elif appt.status == 'completed' %}
+                                <a href="{{ url_for('doctor.prescribe', appointment_id=appt.id) }}"
+                                   class="btn btn-primary btn-small">✏️ Edit Rx</a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+{% endfor %}
+
+{% if not found_any.value %}
+    <p class="empty-msg">
+        No appointments this week
+        ({{ monday.strftime('%d %b') }} – {{ friday.strftime('%d %b %Y') }}).
+    </p>
 {% endif %}
+
+<!-- No-Show Confirmation Modal -->
+<div id="noshow-modal" style="display:none; position:fixed; top:0; left:0;
+     width:100%; height:100%; background:rgba(0,0,0,0.5);
+     z-index:1000; justify-content:center; align-items:center;">
+    <div style="background:white; border-radius:10px; padding:30px;
+                max-width:420px; width:90%; box-shadow:0 4px 20px rgba(0,0,0,0.2);">
+        <h3 style="color:#d93025; margin-bottom:12px;">🚫 Confirm No-Show</h3>
+        <p id="noshow-msg" style="margin-bottom:20px; color:#444;"></p>
+        <div style="display:flex; gap:12px; justify-content:flex-end;">
+            <button class="btn btn-small"
+                    style="background:#eee; color:#333;"
+                    onclick="closeNoShow()">Cancel</button>
+            <a id="noshow-confirm-btn" href="#"
+               class="btn btn-danger btn-small">Yes, Mark No-Show</a>
+        </div>
+    </div>
+</div>
+
+<script>
+function confirmNoShow(url, patientName) {
+    document.getElementById('noshow-msg').textContent =
+        'Are you sure you want to mark ' + patientName +
+        ' as No-Show? This will update the appointment status to "Missed Appointment".';
+    document.getElementById('noshow-confirm-btn').href = url;
+    const modal = document.getElementById('noshow-modal');
+    modal.style.display = 'flex';
+}
+function closeNoShow() {
+    document.getElementById('noshow-modal').style.display = 'none';
+}
+// Close modal on backdrop click
+document.getElementById('noshow-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeNoShow();
+});
+</script>
 
 {% endblock %}

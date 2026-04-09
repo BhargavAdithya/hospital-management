@@ -19,10 +19,12 @@ def create_app():
     from routes.auth         import auth_bp
     from routes.receptionist import receptionist_bp
     from routes.doctor       import doctor_bp
+    from routes.patient      import patient_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(receptionist_bp)
     app.register_blueprint(doctor_bp)
+    app.register_blueprint(patient_bp)
 
     # Create tables and seed default users on first run
     with app.app_context():

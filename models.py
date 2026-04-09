@@ -34,6 +34,8 @@ class Patient(db.Model):
     age          = db.Column(db.Integer, nullable=False)
     gender       = db.Column(db.String(10), nullable=False)
     contact      = db.Column(db.String(15), nullable=False)
+    email        = db.Column(db.String(120), nullable=True)
+    address      = db.Column(db.Text, nullable=True)
     admitted_at  = db.Column(db.DateTime, default=datetime.utcnow)
 
     # One patient can have multiple appointments
@@ -55,6 +57,8 @@ class Appointment(db.Model):
     # pending / accepted / rejected
     status     = db.Column(db.String(20), default='pending', nullable=False)
 
+    rescheduled  = db.Column(db.Boolean, default=False, nullable=False)
+    self_booked  = db.Column(db.Boolean, default=False, nullable=False)
     # One appointment has at most one prescription
     prescription = db.relationship('Prescription', backref='appointment',
                                    uselist=False, lazy=True)
@@ -68,6 +72,7 @@ class Prescription(db.Model):
 
     id             = db.Column(db.Integer, primary_key=True)
     appointment_id = db.Column(db.Integer, db.ForeignKey('appointments.id'), nullable=False)
+    symptoms       = db.Column(db.Text, nullable=False, default='')
     notes          = db.Column(db.Text, nullable=False)
     created_at     = db.Column(db.DateTime, default=datetime.utcnow)
 

@@ -1,3 +1,4 @@
+/* add_patient.html */
 {% extends "base.html" %}
 {% block content %}
 
@@ -9,7 +10,7 @@
 </div>
 
 <div class="form-card">
-    <form method="POST">
+    <form method="POST" id="patient-form">
         {{ patient_form.hidden_tag() }}
 
         {% if existing_patient %}
@@ -19,16 +20,12 @@
             Contact: {{ existing_patient.contact }}) is already in the system.
             A new appointment will be linked to their existing record.
         </div>
-
         {% if previous_prescriptions %}
         <div class="patient-info" style="margin-bottom:16px;">
             <strong>Previous Prescription History:</strong>
             {% for rx in previous_prescriptions %}
             <div style="margin-top:8px; border-top:1px solid #ddd; padding-top:8px;">
-                <small>
-                    📅 <strong>{{ rx.date }}</strong> —
-                    Dr. {{ rx.doctor }}
-                </small>
+                <small>📅 <strong>{{ rx.date }}</strong> — Dr. {{ rx.doctor }}</small>
                 <p style="margin-top:4px;">{{ rx.notes }}</p>
             </div>
             {% endfor %}
@@ -54,7 +51,6 @@
                     <span class="error">{{ error }}</span>
                 {% endfor %}
             </div>
-
             <div class="form-group">
                 {{ patient_form.gender.label }}
                 {{ patient_form.gender(class="form-control") }}
@@ -73,31 +69,173 @@
 
         <div class="form-group">
             {{ appointment_form.doctor_id.label }}
-            {{ appointment_form.doctor_id(class="form-control") }}
+            {{ appointment_form.doctor_id(class="form-control", id="doctor-select") }}
         </div>
 
         <div class="form-row">
             <div class="form-group">
                 {{ appointment_form.date.label }}
-                {{ appointment_form.date(class="form-control") }}
+                {{ appointment_form.date(
+                    class="form-control",
+                    id="date-input",
+                    min=min_date,
+                    max=max_date
+                ) }}
                 {% for error in appointment_form.date.errors %}
                     <span class="error">{{ error }}</span>
                 {% endfor %}
+                <span style="font-size:12px;color:#888;">
+                    Bookable: {{ min_date }} to {{ max_date }} (weekdays only)
+                </span>
             </div>
 
             <div class="form-group">
-                {{ appointment_form.time.label }}
-                {{ appointment_form.time(class="form-control") }}
+                <label for="time-select">Time Slot</label>
+                <select name="time" id="time-select" class="form-control" disabled>
+                    <option value="">— Select doctor &amp; date first —</option>
+                </select>
+                <span style="font-size:12px;color:#888;">
+                    30-min slots, 09:00–17:30. Must book ≥ 1 hr in advance.
+                </span>
                 {% for error in appointment_form.time.errors %}
                     <span class="error">{{ error }}</span>
                 {% endfor %}
             </div>
         </div>
 
-        <div class="form-group">
-            {{ patient_form.submit(class="btn btn-primary btn-full") }}
+        <!-- Banners -->
+        <div id="banner-weekend" class="alert alert-danger" style="display:none;">
+            ⛔ Weekends are holidays. Please select a weekday (Mon – Fri).
+        </div>
+        <div id="banner-range" class="alert alert-danger" style="display:none;">
+            ⛔ Appointments can only be booked within the next 7 days.
+        </div>
+        <div id="banner-no-slots" class="alert alert-warning" style="display:none;">
+            ⚠️ No available slots for the selected doctor on this date.
+        </div>
+        <div id="banner-error" class="alert alert-danger" style="display:none;">
+            ⚠️ Could not load slots. Please try again.
+        </div>
+        <div id="banner-no-slot-submit" class="alert alert-warning" style="display:none;">
+            ⚠️ Please select a time slot before submitting.
+        </div>
+
+        <div class="form-group" style="margin-top:8px;">
+            {{ patient_form.submit(class="btn btn-primary btn-full", id="submit-btn") }}
         </div>
     </form>
 </div>
+
+<script>
+(function () {
+    const doctorSelect = document.getElementById('doctor-select');
+    const dateInput    = document.getElementById('date-input');
+    const timeSelect   = document.getElementById('time-select');
+    const submitBtn    = document.getElementById('submit-btn');
+
+    const bannerWeekend     = document.getElementById('banner-weekend');
+    const bannerRange       = document.getElementById('banner-range');
+    const bannerNoSlots     = document.getElementById('banner-no-slots');
+    const bannerError       = document.getElementById('banner-error');
+    const bannerNoSlotSubmit = document.getElementById('banner-no-slot-submit');
+
+    const minDate = '{{ min_date }}';
+    const maxDate = '{{ max_date }}';
+
+    function hideAllBanners() {
+        [bannerWeekend, bannerRange, bannerNoSlots, bannerError, bannerNoSlotSubmit]
+            .forEach(b => b.style.display = 'none');
+    }
+
+    function showBanner(el) {
+        hideAllBanners();
+        el.style.display = 'block';
+    }
+
+    function isWeekend(dateStr) {
+        const [y, m, d] = dateStr.split('-').map(Number);
+        const day = new Date(y, m - 1, d).getDay();
+        return day === 0 || day === 6;
+    }
+
+    function isOutOfRange(dateStr) {
+        return dateStr < minDate || dateStr > maxDate;
+    }
+
+    function setTimeSelectState(placeholder, disabled) {
+        timeSelect.innerHTML = `<option value="">${placeholder}</option>`;
+        timeSelect.disabled  = disabled;
+        submitBtn.disabled   = disabled;
+    }
+
+    function loadSlots() {
+        const doctorId = doctorSelect.value;
+        const dateVal  = dateInput.value;
+
+        hideAllBanners();
+
+        if (!doctorId || !dateVal || dateVal.length < 10) {
+            setTimeSelectState('— Select doctor & date first —', true);
+            return;
+        }
+
+        if (isWeekend(dateVal)) {
+            showBanner(bannerWeekend);
+            setTimeSelectState('No slots — weekend', true);
+            return;
+        }
+
+        if (isOutOfRange(dateVal)) {
+            showBanner(bannerRange);
+            setTimeSelectState('Date out of range', true);
+            return;
+        }
+
+        setTimeSelectState('Loading slots…', true);
+
+        fetch(`/receptionist/slots?doctor_id=${doctorId}&date=${dateVal}&reschedule_appt=0`)
+            .then(r => r.json())
+            .then(data => {
+                if (data.weekend) { showBanner(bannerWeekend); setTimeSelectState('No slots — weekend', true); return; }
+                if (data.out_of_range) { showBanner(bannerRange); setTimeSelectState('Date out of range', true); return; }
+                if (!data.slots || data.slots.length === 0) {
+                    showBanner(bannerNoSlots);
+                    setTimeSelectState('No slots available', true);
+                    return;
+                }
+
+                timeSelect.innerHTML = '';
+                const ph = document.createElement('option');
+                ph.value = ''; ph.textContent = '— Select a time slot —';
+                timeSelect.appendChild(ph);
+
+                data.slots.forEach(slot => {
+                    const opt = document.createElement('option');
+                    opt.value = slot.value;
+                    opt.textContent = slot.label;
+                    timeSelect.appendChild(opt);
+                });
+
+                timeSelect.disabled = false;
+                submitBtn.disabled  = false;
+            })
+            .catch(() => {
+                showBanner(bannerError);
+                setTimeSelectState('Error — try again', true);
+            });
+    }
+
+    doctorSelect.addEventListener('change', loadSlots);
+    dateInput.addEventListener('change', loadSlots);
+
+    document.getElementById('patient-form').addEventListener('submit', function (e) {
+        if (!timeSelect.value) {
+            e.preventDefault();
+            showBanner(bannerNoSlotSubmit);
+            timeSelect.focus();
+        }
+    });
+})();
+</script>
 
 {% endblock %}

@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div style="min-height:80vh; display:flex; align-items:center; justify-content:center;">
+    <div style="text-align:center; width:100%;">
+
+        <h1 style="color:#1a73e8; font-size:2rem; margin-bottom:8px;">
+            🏥 City General Hospital
+        </h1>
+        <p style="color:#666; margin-bottom:40px; font-size:1rem;">
+            Welcome! Please select how you would like to continue.
+        </p>
+
+        <div style="display:flex; justify-content:center; gap:24px;
+                    flex-wrap:wrap; max-width:800px; margin:0 auto;">
+
+            <!-- Receptionist Card -->
+            <a href="{{ url_for('auth.login') }}?role=receptionist"
+               style="text-decoration:none;">
+                <div class="role-card">
+                    <div class="role-icon">🗂️</div>
+                    <h3>Receptionist</h3>
+                    <p>Manage patient admissions,<br/>appointments and records</p>
+                    <span class="btn btn-primary" style="margin-top:14px; display:inline-block;">
+                        Login as Receptionist
+                    </span>
+                </div>
+            </a>
+
+            <!-- Doctor Card -->
+            <a href="{{ url_for('auth.login') }}?role=doctor"
+               style="text-decoration:none;">
+                <div class="role-card">
+                    <div class="role-icon">👨‍⚕️</div>
+                    <h3>Doctor</h3>
+                    <p>View today's appointments,<br/>write prescriptions</p>
+                    <span class="btn btn-primary" style="margin-top:14px; display:inline-block;">
+                        Login as Doctor
+                    </span>
+                </div>
+            </a>
+
+            <!-- Patient Card -->
+            <a href="{{ url_for('patient.book') }}"
+               style="text-decoration:none;">
+                <div class="role-card">
+                    <div class="role-icon">🧑‍🤝‍🧑</div>
+                    <h3>Patient</h3>
+                    <p>Self-book an appointment<br/>with a doctor</p>
+                    <span class="btn btn-success" style="margin-top:14px; display:inline-block;">
+                        Book an Appointment
+                    </span>
+                </div>
+            </a>
+
+        </div>
+    </div>
+</div>
+
+{% endblock %}

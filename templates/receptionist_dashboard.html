@@ -21,12 +21,13 @@
             <th>Date</th>
             <th>Time</th>
             <th>Status</th>
-            <th>Prescription</th>
+            <th>Booked By</th>
+            <th>Prescription Receipt</th>
         </tr>
     </thead>
     <tbody>
         {% for appt in appointments %}
-        <tr>
+        <tr class="{{ 'self-booked-row' if appt.self_booked else '' }}">
             <td>{{ loop.index }}</td>
             <td>{{ appt.patient.name }}</td>
             <td>{{ appt.patient.age }}</td>
@@ -35,24 +36,47 @@
             <td>{{ appt.time.strftime('%I:%M %p') }}</td>
             <td>
                 <span class="badge badge-{{ appt.status }}">
-                    {{ appt.status | capitalize }}
+                    {% if appt.status == 'missed' %}Missed Appointment
+                    {% elif appt.status == 'completed' %}Completed
+                    {% else %}{{ appt.status | capitalize }}
+                    {% endif %}
                 </span>
                 {% if appt.status == 'rejected' %}
                     <div class="alert alert-danger" style="margin-top:6px; padding:8px;">
                         ⚠️ Dr. <strong>{{ appt.doctor.username }}</strong> has
                         rejected this appointment.<br/>
-                        <a href="{{ url_for('receptionist.reschedule', appointment_id=appt.id) }}"
-                           class="btn btn-small btn-primary" style="margin-top:6px;">
-                            🔄 Reschedule
-                        </a>
+                        {% if not appt.rescheduled %}
+                            <a href="{{ url_for('receptionist.reschedule', appointment_id=appt.id) }}"
+                               class="btn btn-small btn-primary" style="margin-top:6px;">
+                                🔄 Reschedule
+                            </a>
+                        {% else %}
+                            <span style="font-size:12px; color:#555; margin-top:4px; display:block;">
+                                ✅ Rescheduled
+                            </span>
+                        {% endif %}
                     </div>
                 {% endif %}
             </td>
             <td>
-                {% if appt.prescription %}
-                    {{ appt.prescription.notes[:40] }}...
+                {% if appt.self_booked %}
+                    <span class="badge" style="background:#fff0e0; color:#e65c00;">
+                        🧑 Self-Booked
+                    </span>
                 {% else %}
-                    <em>Not yet written</em>
+                    <span class="badge" style="background:#e8f0fe; color:#1a73e8;">
+                        🗂️ Receptionist
+                    </span>
+                {% endif %}
+            </td>
+            <td>
+                {% if appt.prescription and appt.prescription.notes != 'Prescription not yet written.' %}
+                    <a href="{{ url_for('receptionist.receipt', appointment_id=appt.id) }}"
+                       class="btn btn-small btn-primary" target="_blank">
+                        🧾 View & Download
+                    </a>
+                {% else %}
+                    <em style="color:#aaa;">Not yet written</em>
                 {% endif %}
             </td>
         </tr>
