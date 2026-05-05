@@ -57,25 +57,25 @@ hospital-management/
 flowchart TD
     U([User]) --> L[Login Page]
     L -->|role = receptionist| RD[Receptionist Dashboard]
-    L -->|role = doctor| DD[Doctor Dashboard\nMon–Fri week view]
+    L -->|role = doctor| DD[Doctor Dashboard - Mon to Fri]
 
-    RD --> AP[Admit Patient\nadd_patient.html]
-    AP -->|AJAX| SA[/receptionist/slots\nAJAX endpoint]
-    SA -->|available slots JSON| AP
-    AP -->|POST| DB[(SQLite DB)]
+    RD --> AP[Admit Patient]
+    AP -->|AJAX fetch slots| SA[Slots API Endpoint]
+    SA -->|JSON slots| AP
+    AP -->|POST book| DB[(SQLite DB)]
 
     DB --> RD
     RD -->|status = rejected| RS[Reschedule Page]
-    RS -->|AJAX| SA
+    RS -->|AJAX fetch slots| SA
     RS -->|POST new slot| DB
 
-    DD -->|pending| ACT{Accept / Reject}
-    ACT -->|accept| PR[Write Prescription\nprescribe.html]
+    DD -->|pending| ACT{Accept or Reject}
+    ACT -->|accept| PR[Write Prescription]
     ACT -->|reject| DB
     PR --> DB
 
-    DB -->|updated status| RD
-    DB -->|updated status| DD
+    DB -->|status update| RD
+    DB -->|status update| DD
 
     style DB fill:#e8f0fe,stroke:#1a73e8
     style SA fill:#e6f4ea,stroke:#34a853
